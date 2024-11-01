@@ -972,5 +972,99 @@ namespace lab6
             polyhedron = CreateDodecahedron();
             pictureBox1.Invalidate();
         }
+
+
+        // Сохранение и загрузка в файл
+        // =========================================================================
+        // Сохраняем в файл
+        public void SaveToOBJ(string filePath)
+        {
+            using (StreamWriter writer = new StreamWriter(filePath))
+            {
+                // Сохраняем вершины
+                foreach (var vertex in polyhedron.Vertices)
+                {
+                    writer.WriteLine($"v {vertex.X} {vertex.Y} {vertex.Z}");
+                }
+
+                // Сохраняем грани
+                foreach (var face in polyhedron.Faces)
+                {
+                    string faceLine = "f";
+                    foreach (var vertexIndex in face.Vertices)
+                    {
+                        faceLine += $" {vertexIndex + 1}"; // +1, так как индексация в OBJ начинается с 1
+                    }
+                    writer.WriteLine(faceLine);
+                }
+            }
+        }
+
+        // Загружаем из файла
+        public void LoadFromOBJ(string filePath)
+        {
+            var vertices = new List<Point3D>();
+            var faces = new List<Face>();
+
+            foreach (string line in File.ReadLines(filePath))
+            {
+                if (line.StartsWith("v "))
+                {
+                    var parts = line.Split(' ');
+                    double x = double.Parse(parts[1]);
+                    double y = double.Parse(parts[2]);
+                    double z = double.Parse(parts[3]);
+                    vertices.Add(new Point3D(x, y, z));
+                }
+                else if (line.StartsWith("f "))
+                {
+                    var parts = line.Split(' ');
+                    var vertexIndices = new List<int>();
+
+                    for (int i = 1; i < parts.Length; i++)
+                    {
+                        int vertexIndex = int.Parse(parts[i]) - 1; // -1 для перехода на индекс
+                        vertexIndices.Add(vertexIndex);
+                    }
+                    faces.Add(new Face(vertexIndices));
+                }
+            }
+
+            polyhedron = new Polyhedron(vertices, faces);
+        }
+
+        private void saveTool_Click(object sender, EventArgs e)
+        {
+            if (polyhedron == null)
+                return;
+
+            using (SaveFileDialog saveFileDialog = new SaveFileDialog())
+            {
+                saveFileDialog.Filter = "OBJ files (*.obj)|*.obj|All files (*.*)|*.*";
+                saveFileDialog.Title = "Сохранить файл как";
+
+                if (saveFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string filePath = saveFileDialog.FileName;
+                    SaveToOBJ(filePath);
+                }
+            }
+        }
+
+        private void openTool_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog openFileDialog = new OpenFileDialog())
+            {
+                openFileDialog.Filter = "OBJ files (*.obj)|*.obj|All files (*.*)|*.*";
+                openFileDialog.Title = "Открыть файл";
+
+                if (openFileDialog.ShowDialog() == DialogResult.OK)
+                {
+                    string filePath = openFileDialog.FileName;
+                    LoadFromOBJ(filePath);
+                    pictureBox1.Invalidate(); 
+                }
+            }
+        }
     }    
 }
