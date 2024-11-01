@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Runtime.Intrinsics.Arm;
 using System.Security.Cryptography;
 using System.Windows.Forms;
 using static lab6.Form1;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace lab6
 {
@@ -17,8 +19,8 @@ namespace lab6
 
         public Form1()
         {
-            InitializeComponent();
-            polyhedron = CreateIcosahedron();
+            InitializeComponent();                                                     
+            //polyhedron = CreateCube();
 
             pictureBox1.Paint += new PaintEventHandler(pictureBox1_Paint);
 
@@ -153,7 +155,7 @@ namespace lab6
 
                 result.matrix[0, 0] = 1;
                 result.matrix[1, 1] = 1;
-                result.matrix[3, 2] = 1/distance;
+                result.matrix[3, 2] = 1 / distance;
                 result.matrix[3, 3] = 1;
                 return result;
             }
@@ -375,12 +377,49 @@ namespace lab6
             }
         }
 
+        //----------------------------------------------------------------
+        //куб
+        public Polyhedron CreateCube()
+        {
+            double a = 100.0;
+            var vertices = new List<Point3D>
+            {
+                new Point3D(0, 0, 0),
+                new Point3D(a, 0, 0),
+                new Point3D(a, a, 0),
+                new Point3D(0, a, 0),
+                new Point3D(0, 0, a),
+                new Point3D(a, 0, a),
+                new Point3D(a, a, a),
+                new Point3D(0, a, a)
+            };
+
+            var faces = new List<Face>
+            {
+                new Face(new List<int> { 0, 1, 2, 3 }),
+                new Face(new List<int> { 4, 5, 6, 7 }),
+                new Face(new List<int> { 0, 1, 5, 4 }),
+                new Face(new List<int> { 1, 2, 6, 5 }),
+                new Face(new List<int> { 2, 3, 7, 6 }),
+                new Face(new List<int> { 3, 0, 4, 7 })
+            };
+            double offsetX = pictureBox1.Width / 2;
+            double offsetY = pictureBox1.Height / 2;
+            for (int i = 0; i < vertices.Count; i++)
+            {
+                vertices[i] = new Point3D(vertices[i].X + offsetX, vertices[i].Y + offsetY, vertices[i].Z);
+            }
+
+            return new Polyhedron(vertices, faces);
+        }
+
+        //икосаэдр
         public Polyhedron CreateIcosahedron()
         {
             List<Point3D> vertices = new List<Point3D>();
             List<Face> faces = new List<Face>();
 
-            double radius = 100.0;  
+            double radius = 100.0;
             double height = radius / 2.0;
             double sqrt5 = Math.Sqrt(5) / 2.0 * radius;
 
@@ -434,15 +473,141 @@ namespace lab6
             return new Polyhedron(vertices, faces);
         }
 
+        //додекаэдр
+        public Polyhedron CreateDodecahedron()
+        {
+            double phi = (1 + Math.Sqrt(5)) / 2;
+            double a = 100.0;
+
+            List<Point3D> vertices = new List<Point3D>
+            {
+                new Point3D( a,  a,  a), //0
+                new Point3D( a,  a, -a), //1
+                new Point3D( a, -a,  a), //2
+                new Point3D( a, -a, -a), //3
+                new Point3D(-a,  a,  a), //4
+                new Point3D(-a,  a, -a), //5
+                new Point3D(-a, -a,  a), //6
+                new Point3D(-a, -a, -a), //7
+                new Point3D( 0,  1/phi * a,  phi * a), //8
+                new Point3D( 0,  1/phi * a, -phi * a), //9
+                new Point3D( 0, -1/phi * a,  phi * a), //10
+                new Point3D( 0, -1/phi * a, -phi * a), //11
+                new Point3D( 1/phi * a,  phi * a,  0), //12
+                new Point3D(-1/phi * a,  phi * a,  0), //13
+                new Point3D( 1/phi * a, -phi * a,  0), //14
+                new Point3D(-1/phi * a, -phi * a,  0), //15
+                new Point3D( phi * a,  0,  1/phi * a), //16
+                new Point3D(-phi * a,  0,  1/phi * a), //17
+                new Point3D( phi * a,  0, -1/phi * a), //18
+                new Point3D(-phi * a,  0, -1/phi * a) //19
+            };
+
+            List<Face> faces = new List<Face>
+            {
+                new Face(new List<int> { 0, 8, 4, 13, 12 }),
+                new Face(new List<int> { 16, 18, 3, 14, 2 }),
+                new Face(new List<int> { 19, 5, 9, 11, 7 }),
+                new Face(new List<int> { 6, 10, 2, 14, 15 }),
+                new Face(new List<int> { 12, 13, 5, 9, 1 }),
+                new Face(new List<int> { 0, 8 ,10, 2, 16 }),
+                new Face(new List<int> { 13, 4, 17, 19, 5 }),
+                new Face(new List<int> { 18, 1, 9, 11, 3 }),
+                new Face(new List<int> { 0, 12, 1, 18, 16 }),
+                new Face(new List<int> { 19, 17, 6, 15, 7 }),
+                new Face(new List<int> { 3, 14, 15, 7, 11 }),
+                new Face(new List<int> { 8, 4, 17, 6, 10 }),
+            };
+
+            double offsetX = pictureBox1.Width / 2;
+            double offsetY = pictureBox1.Height / 2;
+            for (int i = 0; i < vertices.Count; i++)
+            {
+                vertices[i] = new Point3D(vertices[i].X + offsetX, vertices[i].Y + offsetY, vertices[i].Z);
+            }
+
+            return new Polyhedron(vertices, faces);
+        }
+
+
+
+        //тело вращения
+        public Polyhedron CreateRevolvedShape(List<Point3D> points, char ax, int cnt)
+        {
+            double angleStep = 360.0 / cnt; // угол на каждый шаг разбиения
+            double radiansStep = angleStep * Math.PI / 180; // угол в радианах
+
+            List<Point3D> vertices = new List<Point3D>();
+            List<Face> faces = new List<Face>();
+
+            // Добавляем начальные точки образующей в вершины
+            for (int i = 0; i < cnt; i++)
+            {
+                foreach (var p in points)
+                {
+                    // Рассчитываем вращение в зависимости от оси
+                    double x = p.X, y = p.Y, z = p.Z;
+                    double angle = radiansStep * i;
+
+                    if (ax == 'x')
+                    {
+                        // Вращение вокруг оси X
+                        y = p.Y * Math.Cos(angle) - p.Z * Math.Sin(angle);
+                        z = p.Y * Math.Sin(angle) + p.Z * Math.Cos(angle);
+                    }
+                    else if (ax == 'y')
+                    {
+                        // Вращение вокруг оси Y
+                        x = p.X * Math.Cos(angle) + p.Z * Math.Sin(angle);
+                        z = -p.X * Math.Sin(angle) + p.Z * Math.Cos(angle);
+                    }
+                    vertices.Add(new Point3D(x, y, z));
+                }
+            }
+
+            // Генерация боковых граней, соединяющих точки
+            int profileSize = points.Count;
+            for (int i = 0; i < cnt; i++)
+            {
+                for (int j = 0; j < profileSize; j++)
+                {
+                    int current = i * profileSize + j;
+                    int current1 = i * profileSize + (j + 1) % profileSize;
+                    int next = ((i + 1) % cnt) * profileSize + j;
+                    int next1 = ((i + 1) % cnt) * profileSize + (j + 1) % profileSize;
+
+                    // Определяем индексы четырёх углов каждой боковой грани
+                    List<int> faceVertices = new List<int>
+                    {
+                        current,
+                        current1,
+                        next1,
+                        next
+                    };
+                    faces.Add(new Face(faceVertices));
+                }
+            }
+
+            double offsetX = pictureBox1.Width / 2;
+            double offsetY = pictureBox1.Height / 2;
+            for (int i = 0; i < vertices.Count; i++)
+            {
+                vertices[i] = new Point3D(vertices[i].X + offsetX, vertices[i].Y + offsetY, vertices[i].Z);
+            }
+
+            return new Polyhedron(vertices, faces);
+        }
+
+
 
         // Отрисовка многогранников
         // =========================================================================
         public PointF Project(Point3D point, TransformationMatrix projectionMatrix)
         {
 
-                Point3D projectedPoint = projectionMatrix.TransformForPerspect(point);
-                return new PointF((float)projectedPoint.X, (float)projectedPoint.Y);
-            
+            Point3D projectedPoint = projectionMatrix.TransformForPerspect(point);
+            return new PointF((float)projectedPoint.X, (float)projectedPoint.Y);
+
         }
 
 
@@ -487,9 +652,10 @@ namespace lab6
         // Обработчик события Paint для отрисовки на pictureBox1
         private void pictureBox1_Paint(object sender, PaintEventArgs e)
         {
-            DrawPolyhedron(polyhedron, e.Graphics, currentProjectionMatrix);
-            if (line.Count == 2)
-                DrawStraightLine(polyhedron, e.Graphics, currentProjectionMatrix);
+            if (polyhedron!=null) { DrawPolyhedron(polyhedron, e.Graphics, currentProjectionMatrix);
+                if (line.Count == 2)
+                    DrawStraightLine(polyhedron, e.Graphics, currentProjectionMatrix);
+            }
         }
 
 
@@ -686,5 +852,125 @@ namespace lab6
             }
             pictureBox1.Invalidate();
         }
-    }
+
+        private void cnt_points_TextChanged(object sender, EventArgs e)
+        {
+            // Очищаем предыдущие элементы, если они есть
+            panel_points.Controls.Clear();
+            panel_points.AutoScroll = true; // Включаем прокрутку для панели
+
+            // Пытаемся преобразовать значение из textBoxMain в число
+            if (int.TryParse(cnt_points.Text, out int rowCount) && rowCount > 0)
+            {
+                int spacing = 50; // расстояние между рядами
+                int maxRows = panel_points.Height / spacing; // максимальное количество рядов без прокрутки
+
+                for (int i = 0; i < rowCount; i++)
+                {
+                    // Создаем метку "X"
+                    Label labelX = new Label();
+                    labelX.Text = $"X{i + 1}";
+                    labelX.Location = new Point(10, i * spacing);
+                    labelX.AutoSize = true;
+
+                    // Создаем TextBox для "X"
+                    System.Windows.Forms.TextBox textBoxX = new System.Windows.Forms.TextBox();
+                    textBoxX.Location = new Point(60, i * spacing);
+                    textBoxX.Width = 70;
+
+                    // Создаем метку "Y"
+                    Label labelY = new Label();
+                    labelY.Text = $"Y{i + 1}";
+                    labelY.Location = new Point(130, i * spacing);
+                    labelY.AutoSize = true;
+
+                    // Создаем TextBox для "Y"
+                    System.Windows.Forms.TextBox textBoxY = new System.Windows.Forms.TextBox();
+                    textBoxY.Location = new Point(180, i * spacing);
+                    textBoxY.Width = 70;
+
+                    // Добавляем все элементы в панель
+                    panel_points.Controls.Add(labelX);
+                    panel_points.Controls.Add(textBoxX);
+                    panel_points.Controls.Add(labelY);
+                    panel_points.Controls.Add(textBoxY);
+                }
+
+                // Устанавливаем размер AutoScrollMinSize, чтобы задать максимальную прокрутку по вертикали
+                panel_points.AutoScrollMinSize = new Size(0, rowCount * spacing);
+            }
+            else
+            {
+                // Если введено некорректное значение, очищаем панель
+                panel_points.Controls.Clear();
+            }
+        }
+
+        private void panel2_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void create_fig_Click(object sender, EventArgs e)
+        {
+            List<Point3D> points = new List<Point3D>();
+
+            for (int i = 0; i < panel_points.Controls.Count; i += 4)
+            {
+                // Получаем TextBox для X и Y координат в текущем ряду
+                if (panel_points.Controls[i + 1] is System.Windows.Forms.TextBox textBoxX &&
+                    panel_points.Controls[i + 3] is System.Windows.Forms.TextBox textBoxY)
+                {
+                    // Считываем значения из TextBox, если они корректны
+                    if (double.TryParse(textBoxX.Text, out double x) &&
+                        double.TryParse(textBoxY.Text, out double y))
+                    {
+                        // Добавляем точку с Z = 0 в список
+                        points.Add(new Point3D(x, y, 0));
+                    }
+                    else
+                    {
+                        MessageBox.Show("Введите корректные числовые значения для всех точек.");
+                        return;
+                    }
+                }
+            }
+            char ax='y';
+            if (cbY.Checked) ax = 'y';
+            else if (cbX.Checked) ax = 'x';
+            int cnt;
+            int.TryParse(tbCnt.Text, out cnt);
+            polyhedron = CreateRevolvedShape(points, ax, cnt);
+            pictureBox1.Invalidate();
+        }
+
+        private void фигураВращенияToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            panel2.Enabled = panel2.Visible = true;
+            polyhedron = new Polyhedron();
+            pictureBox1.Invalidate();
+
+        }
+
+        private void икосаэдрToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            panel2.Enabled = panel2.Visible = false;
+            polyhedron = CreateIcosahedron();
+            pictureBox1.Invalidate();
+        }
+
+        private void кубToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            panel2.Enabled = panel2.Visible = false;
+            polyhedron = CreateCube();
+            pictureBox1.Invalidate();
+        }
+
+        private void додекаэдрToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            panel2.Enabled = panel2.Visible = false;
+            polyhedron = CreateDodecahedron();
+            pictureBox1.Invalidate();
+        }
+    }    
 }
